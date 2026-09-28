@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AnythingLLM 文档上传</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, sans-serif; max-width:600px; margin:40px auto; padding:20px; }
+h1 { font-size:22px; margin-bottom:20px; }
+.upload-area { border:2px dashed #ccc; border-radius:12px; padding:40px; text-align:center; margin-bottom:16px; cursor:pointer; transition:border-color .3s; }
+.upload-area:hover { border-color:#007bff; }
+.upload-area.dragover { border-color:#007bff; background:#f0f8ff; }
+#fileInput { display:none; }
+.file-name { font-size:14px; color:#666; margin-bottom:16px; min-height:20px; }
+button { background:#007bff; color:#fff; border:none; padding:12px 32px; border-radius:8px; font-size:16px; cursor:pointer; }
+button:hover { background:#0056b3; }
+button:disabled { background:#ccc; cursor:not-allowed; }
+#status { margin-top:16px; padding:12px; border-radius:8px; display:none; }
+#status.success { background:#d4edda; color:#155724; display:block; }
+#status.error { background:#f8d7da; color:#721c24; display:block; }
+#progress { width:100%; height:6px; background:#eee; border-radius:3px; margin-top:12px; display:none; }
+#progress .bar { height:100%; background:#007bff; border-radius:3px; width:0%; transition:width .3s; }
+</style>
+</head>
+<body>
+<h1>📄 AnythingLLM 文档上传</h1>
+<div class="upload-area" id="uploadArea">
+<p>点击或拖拽文件到此处</p>
+<p style="font-size:13px;color:#999;margin-top:8px;">支持 PDF, DocX, HTML, TXT, Markdown 等格式</p>
+</div>
+<input type="file" id="fileInput">
+<p class="file-name" id="fileName"></p>
+<button id="uploadBtn" onclick="upload()">上传并嵌入向量化</button>
+<div id="progress"><div class="bar" id="progressBar"></div></div>
+<div id="status"></div>
+<script>
+const API_KEY = 'GJYW23G-9Q4MSK7-GNHA6TB-PPAK0FB';
+const WORKSPACE_SLUG = '531cfcc3-6220-455e-8190-dde1e78e4f44';
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('fileInput');
+const fileName = document.getElementById('fileName');
+const uploadBtn = document.getElementById('uploadBtn');
+const statusDiv = document.getElementById('status');
+const progressDiv = document.getElementById('progress');
+const progressBar = document.getElementById('progressBar');
+
+uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadArea.classList.remove('dragover');
+  if (e.dataTransfer.files.length) { fileInput.files = e.dataTransfer.files; handleFile(); }
+});
+fileInput.addEventListener('change', handleFile);
+
+function handleFile() {
+  const f = fileInput.files[0];
+  if (f) { fileName.textContent = '已选择: ' + f.name; }
+}
+
+async function upload() {
+  const file = fileInput.files[0];
+  if (!file) { showStatus('请先选择文件', 'error'); return; }
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('addToWorkspaces', WORKSPACE_SLUG);
+
+  uploadBtn.disabled = true;
+  statusDiv.className = 'hidden';
+  progressDiv.style.display = 'block';
+  progressBar.style.width = '0%';
+
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) progressBar.style.width = (e.loaded / e.total * 100) + '%';
+    });
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) {
+        const res = JSON.parse(xhr.responseText);
+        progressBar.style.width = '100%';
+        showStatus('✅ 上传成功！文档已嵌入工作区进行向量化。' + (res.documents ? ' 文档数: ' + res.documents.length : ''), 'success');
+      } else {
+        showStatus('❌ 上传失败: ' + xhr.responseText, 'error');
+      }
+      uploadBtn.disabled = false;
+    });
+    xhr.addEventListener('error', () => {
+      showStatus('❌ 网络错误', 'error');
+      uploadBtn.disabled = false;
+    });
+    xhr.open('POST', 'http://localhost:3001/api/v1/document/upload');
+    xhr.setRequestHeader('Authorization', 'Bearer ' + API_KEY);
+    xhr.send(formData);
+  } catch (err) {
+    showStatus('❌ 错误: ' + err.message, 'error');
+    uploadBtn.disabled = false;
+  }
+}
+
+function showStatus(msg, type) {
+  statusDiv.textContent = msg;
+  statusDiv.className = type;
+}
+</script>
+</body>
+</html>

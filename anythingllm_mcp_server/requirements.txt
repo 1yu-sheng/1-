@@ -1,0 +1,5 @@
+mcp[sdk]
+httpx
+uvicorn
+fastapi
+sse-starlette

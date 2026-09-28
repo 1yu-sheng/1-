@@ -1,0 +1,12 @@
+[project]
+name = "anythingllm-mcp"
+version = "0.1.0"
+description = "MCP server for AnythingLLM workspace chat"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[sdk]",
+    "httpx",
+    "uvicorn",
+    "fastapi",
+    "sse-starlette",
+]
